@@ -1312,6 +1312,10 @@ void s1ap_handle_enb_configuration_transfer(
 
     if (SONConfigurationTransfer)
     {
+        S1AP_TargeteNB_ID_t *targeteNB_ID =
+            &SONConfigurationTransfer->targeteNB_ID;
+        S1AP_SourceeNB_ID_t *sourceeNB_ID =
+            &SONConfigurationTransfer->sourceeNB_ID;
         S1AP_SONInformation_t *sONInformation =
             &SONConfigurationTransfer->sONInformation;
         S1AP_ProtocolExtensionContainer_6602P89_t *iE_Extensions = 
@@ -1319,12 +1323,9 @@ void s1ap_handle_enb_configuration_transfer(
             SONConfigurationTransfer->iE_Extensions;
 
         mme_enb_t *target_enb = NULL;
-        c_uint32_t target_enb_id;
-#if 0
         c_uint32_t source_enb_id, target_enb_id;
         c_uint16_t source_tac, target_tac;
         long present;
-#endif
 
         s1ap_ENB_ID_to_uint32(
                 &SONConfigurationTransfer->targeteNB_ID.global_ENB_ID.eNB_ID,
@@ -1463,36 +1464,28 @@ void s1ap_handle_enb_configuration_transfer(
             }
         }
 
-#if 0
         s1ap_ENB_ID_to_uint32(
-                &SONConfigurationTransfer->sourceeNB_ID.global_ENB_ID.eNB_ID,
-                &source_enb_id);
+                &sourceeNB_ID->global_ENB_ID.eNB_ID, &source_enb_id);
         s1ap_ENB_ID_to_uint32(
-                &SONConfigurationTransfer->targeteNB_ID.global_ENB_ID.eNB_ID,
-                &target_enb_id);
+                &targeteNB_ID->global_ENB_ID.eNB_ID, &target_enb_id);
 
-        memcpy(&source_tac,
-                SONConfigurationTransfer->sourceeNB_ID.selected_TAI.tAC.buf,
+        memcpy(&source_tac, sourceeNB_ID->selected_TAI.tAC.buf,
                 sizeof(source_tac));
         source_tac = ntohs(source_tac);
-        memcpy(&target_tac,
-                SONConfigurationTransfer->targeteNB_ID.selected_TAI.tAC.buf,
+        memcpy(&target_tac, targeteNB_ID->selected_TAI.tAC.buf,
                 sizeof(target_tac));
         target_tac = ntohs(target_tac);
 
-        present =
-            SONConfigurationTransfer->sourceeNB_ID.global_ENB_ID.eNB_ID.present;
+        present = sourceeNB_ID->global_ENB_ID.eNB_ID.present;
         d_trace(5, "    Source : ENB_ID[%s:%d], TAC[%d]\n",
                 present == S1AP_ENB_ID_PR_homeENB_ID ? "Home" : 
                 present == S1AP_ENB_ID_PR_macroENB_ID ? "Macro" : "Others",
                 source_enb_id, source_tac);
-        present =
-            SONConfigurationTransfer->targeteNB_ID.global_ENB_ID.eNB_ID.present;
+        present = targeteNB_ID->global_ENB_ID.eNB_ID.present;
         d_trace(5, "    Target : ENB_ID[%s:%d], TAC[%d]\n",
                 present == S1AP_ENB_ID_PR_homeENB_ID ? "Home" : 
                 present == S1AP_ENB_ID_PR_macroENB_ID ? "Macro" : "Others",
                 target_enb_id, target_tac);
-#endif
 
         rv = s1ap_send_mme_configuration_transfer(
                 enb, target_enb, SONConfigurationTransfer);

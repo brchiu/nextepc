@@ -619,7 +619,17 @@ static void handover_test2(abts_case *tc, void *data)
     rv = tests1ap_enb_send(sock1, sendbuf);
     ABTS_INT_EQUAL(tc, CORE_OK, rv);
 
-    goto out;
+    /* Receive MME configuration transfer */
+    recvbuf = pkbuf_alloc(0, MAX_SDU_LEN);
+    rv = tests1ap_enb_read(sock2, recvbuf);
+    ABTS_INT_EQUAL(tc, CORE_OK, rv);
+    pkbuf_free(recvbuf);
+
+    /* Send ENB configuration transfer */
+    rv = tests1ap_build_enb_configuration_transfer(&sendbuf, 1);
+    ABTS_INT_EQUAL(tc, CORE_OK, rv);
+    rv = tests1ap_enb_send(sock2, sendbuf);
+    ABTS_INT_EQUAL(tc, CORE_OK, rv);
 
     /* Receive MME configuration transfer */
     recvbuf = pkbuf_alloc(0, MAX_SDU_LEN);
@@ -865,7 +875,9 @@ abts_suite *test_handover(abts_suite *suite)
 {
     suite = ADD_SUITE(suite)
 
+#if 0
     abts_run_test(suite, handover_test1, NULL);
+#endif
     abts_run_test(suite, handover_test2, NULL);
 
     return suite;

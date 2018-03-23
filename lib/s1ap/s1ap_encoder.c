@@ -20,7 +20,7 @@ status_t s1ap_encode_pdu(pkbuf_t **pkbuf, s1ap_message_t *message)
                     message, (*pkbuf)->payload, MAX_SDU_LEN);
     if (enc_ret.encoded < 0)
     {
-        d_error("Failed to decode S1AP-PDU[%d]", enc_ret.encoded);
+        d_error("Failed to encode S1AP-PDU[%d]", enc_ret.encoded);
         pkbuf_free(*pkbuf);
         return CORE_ERROR;
     }
