@@ -1167,7 +1167,7 @@ status_t s1ap_build_paging(pkbuf_t **s1apbuf, mme_ue_t *mme_ue)
 }
 
 status_t s1ap_build_mme_configuration_transfer(
-        pkbuf_t **s1apbuf, mme_enb_t *target_enb,
+        pkbuf_t **s1apbuf, mme_enb_t *enb,
         S1AP_SourceeNB_ID_t *sourceenb_id, S1AP_TargeteNB_ID_t *targetenb_id)
 {
     status_t rv;
@@ -1224,138 +1224,135 @@ status_t s1ap_build_mme_configuration_transfer(
     rv = s1ap_copy_ie(&asn_DEF_S1AP_TargeteNB_ID, targetenb_id, targeteNB_ID);
     d_assert(rv == CORE_OK, return CORE_ERROR,);
 
-    if (target_enb == NULL)
+    if (enb->x2_gtp_ip.ipv4 || enb->x2_gtp_ip.ipv6)
     {
-        sONInformation->present = S1AP_SONInformation_PR_sONInformationRequest;
-        d_trace(5, "    SONInformationRequest\n");
+        /* Extension IE */
+        S1AP_ProtocolExtensionContainer_6602P89_t *iE_Extensions = NULL;
+        S1AP_SONConfigurationTransfer_ExtIEs_t *extIe = NULL;
+        S1AP_X2TNLConfigurationInfo_t *x2TNLConfigurationInfo = NULL;
+        S1AP_ENBX2TLAs_t *eNBX2TransportLayerAddresses = NULL;
+        S1AP_TransportLayerAddress_t *transportLayerAddress = NULL;
+
+        S1AP_ProtocolExtensionContainer_6602P117_t *iE_Extensions2 = NULL;
+        S1AP_X2TNLConfigurationInfo_ExtIEs_t *extIe2 = NULL;
+        S1AP_ENBX2ExtTLAs_t *ENBX2ExtTLAs = NULL;
+        S1AP_ENBX2ExtTLA_t *ENBX2ExtTLA = NULL;
+        S1AP_ENBX2GTPTLAs_t *gTPTLAa = NULL;
+
+        d_trace(5, "    Extension IE\n");
+        sONInformation->present =
+            S1AP_SONInformation_PR_sONInformationRequest;
+
+        SONConfigurationTransfer->iE_Extensions = core_calloc(1,
+                sizeof(S1AP_ProtocolExtensionContainer_6602P89_t));
+        iE_Extensions = (S1AP_ProtocolExtensionContainer_6602P89_t *)
+            SONConfigurationTransfer->iE_Extensions;
+        d_assert(iE_Extensions, return CORE_ERROR,);
+
+        extIe = core_calloc(1,
+                sizeof(S1AP_SONConfigurationTransfer_ExtIEs_t));
+        d_assert(extIe, return CORE_ERROR,);
+        ASN_SEQUENCE_ADD(&iE_Extensions->list, extIe);
+
+        extIe->id = S1AP_ProtocolIE_ID_id_x2TNLConfigurationInfo;
+        extIe->criticality = S1AP_Criticality_ignore;
+        extIe->extensionValue.present = S1AP_SONConfigurationTransfer_ExtIEs__extensionValue_PR_X2TNLConfigurationInfo;
+
+        x2TNLConfigurationInfo =
+            &extIe->extensionValue.choice.X2TNLConfigurationInfo;
+
+        eNBX2TransportLayerAddresses =
+            &x2TNLConfigurationInfo->eNBX2TransportLayerAddresses;
+        transportLayerAddress =
+            core_calloc(1, sizeof(S1AP_TransportLayerAddress_t));
+        d_assert(transportLayerAddress, return CORE_ERROR,);
+        ASN_SEQUENCE_ADD(
+                &eNBX2TransportLayerAddresses->list, transportLayerAddress);
+
+        rv = s1ap_ip_to_BIT_STRING(
+                &enb->x2_ip, transportLayerAddress);
+        d_assert(rv == CORE_OK, return CORE_ERROR,);
+
+        iE_Extensions = (S1AP_ProtocolExtensionContainer_6602P89_t *)
+            SONConfigurationTransfer->iE_Extensions;
+        d_assert(iE_Extensions, return CORE_ERROR,);
+
+        x2TNLConfigurationInfo->iE_Extensions = core_calloc(1,
+                sizeof(S1AP_ProtocolExtensionContainer_6602P117_t));
+        iE_Extensions2 = 
+            (S1AP_ProtocolExtensionContainer_6602P117_t *)
+            x2TNLConfigurationInfo->iE_Extensions;
+        d_assert(iE_Extensions2, return CORE_ERROR,);
+
+        extIe2 = core_calloc(1,
+                sizeof(S1AP_X2TNLConfigurationInfo_ExtIEs_t));
+        d_assert(extIe2, return CORE_ERROR,);
+        ASN_SEQUENCE_ADD(&iE_Extensions2->list, extIe2);
+
+        extIe2->id =
+            S1AP_ProtocolIE_ID_id_eNBX2ExtendedTransportLayerAddresses;
+        extIe2->criticality = S1AP_Criticality_ignore;
+        extIe2->extensionValue.present = S1AP_X2TNLConfigurationInfo_ExtIEs__extensionValue_PR_ENBX2ExtTLAs,
+
+        ENBX2ExtTLAs = &extIe2->extensionValue.choice.ENBX2ExtTLAs;
+
+        ENBX2ExtTLA = core_calloc(1, sizeof(S1AP_ENBX2ExtTLA_t));
+        d_assert(ENBX2ExtTLA, return CORE_ERROR,);
+        ASN_SEQUENCE_ADD(&ENBX2ExtTLAs->list, ENBX2ExtTLA);
+
+        ENBX2ExtTLA->gTPTLAa = core_calloc(1, sizeof(S1AP_ENBX2GTPTLAs_t));
+        gTPTLAa = ENBX2ExtTLA->gTPTLAa;
+        d_assert(gTPTLAa, return CORE_ERROR,);
+
+        transportLayerAddress =
+            core_calloc(1, sizeof(S1AP_TransportLayerAddress_t));
+        d_assert(transportLayerAddress, return CORE_ERROR,);
+        ASN_SEQUENCE_ADD(&gTPTLAa->list, transportLayerAddress);
+
+        rv = s1ap_ip_to_BIT_STRING(
+                &enb->x2_gtp_ip, transportLayerAddress);
+        d_assert(rv == CORE_OK, return CORE_ERROR,);
+    }
+    else if (enb->x2_ip.ipv4 || enb->x2_ip.ipv6)
+    {
+        /* SON Information Reply */
+        S1AP_SONInformationReply_t *sONInformationReply = NULL;
+        S1AP_X2TNLConfigurationInfo_t *x2TNLConfigurationInfo = NULL;
+        S1AP_ENBX2TLAs_t *eNBX2TransportLayerAddresses = NULL;
+        S1AP_TransportLayerAddress_t *transportLayerAddress = NULL;
+
+        d_trace(5, "    SON Information Reply\n");
+
+        sONInformation->present =
+            S1AP_SONInformation_PR_sONInformationReply;
+
+        sONInformation->choice.sONInformationReply = 
+            core_calloc(1, sizeof(S1AP_SONInformationReply_t));
+        sONInformationReply = sONInformation->choice.sONInformationReply;
+        d_assert(sONInformationReply, return CORE_ERROR,);
+
+        sONInformationReply->x2TNLConfigurationInfo = 
+            core_calloc(1, sizeof(S1AP_X2TNLConfigurationInfo_t));
+        x2TNLConfigurationInfo =
+            sONInformationReply->x2TNLConfigurationInfo;
+        d_assert(x2TNLConfigurationInfo, return CORE_ERROR,);
+
+        eNBX2TransportLayerAddresses =
+            &x2TNLConfigurationInfo->eNBX2TransportLayerAddresses;
+        transportLayerAddress =
+            core_calloc(1, sizeof(S1AP_TransportLayerAddress_t));
+        d_assert(transportLayerAddress, return CORE_ERROR,);
+        ASN_SEQUENCE_ADD(
+                &eNBX2TransportLayerAddresses->list, transportLayerAddress);
+
+        rv = s1ap_ip_to_BIT_STRING(
+                &enb->x2_ip, transportLayerAddress);
+        d_assert(rv == CORE_OK, return CORE_ERROR,);
     }
     else
     {
-        if (target_enb->x2_gtp_ip.ipv4 || target_enb->x2_gtp_ip.ipv6)
-        {
-            /* Extension IE */
-            S1AP_ProtocolExtensionContainer_6602P89_t *iE_Extensions = NULL;
-            S1AP_SONConfigurationTransfer_ExtIEs_t *extIe = NULL;
-            S1AP_X2TNLConfigurationInfo_t *x2TNLConfigurationInfo = NULL;
-            S1AP_ENBX2TLAs_t *eNBX2TransportLayerAddresses = NULL;
-            S1AP_TransportLayerAddress_t *transportLayerAddress = NULL;
-
-            S1AP_ProtocolExtensionContainer_6602P117_t *iE_Extensions2 = NULL;
-            S1AP_X2TNLConfigurationInfo_ExtIEs_t *extIe2 = NULL;
-			S1AP_ENBX2ExtTLAs_t *ENBX2ExtTLAs = NULL;
-            S1AP_ENBX2ExtTLA_t *ENBX2ExtTLA = NULL;
-            S1AP_ENBX2GTPTLAs_t *gTPTLAa = NULL;
-
-            d_trace(5, "    Extension IE\n");
-            sONInformation->present =
-                S1AP_SONInformation_PR_sONInformationRequest;
-
-            SONConfigurationTransfer->iE_Extensions = core_calloc(1,
-                    sizeof(S1AP_ProtocolExtensionContainer_6602P89_t));
-            iE_Extensions = (S1AP_ProtocolExtensionContainer_6602P89_t *)
-                SONConfigurationTransfer->iE_Extensions;
-            d_assert(iE_Extensions, return CORE_ERROR,);
-
-            extIe = core_calloc(1,
-                    sizeof(S1AP_SONConfigurationTransfer_ExtIEs_t));
-            d_assert(extIe, return CORE_ERROR,);
-            ASN_SEQUENCE_ADD(&iE_Extensions->list, extIe);
-
-            extIe->id = S1AP_ProtocolIE_ID_id_x2TNLConfigurationInfo;
-            extIe->criticality = S1AP_Criticality_ignore;
-            extIe->extensionValue.present = S1AP_SONConfigurationTransfer_ExtIEs__extensionValue_PR_X2TNLConfigurationInfo;
-
-            x2TNLConfigurationInfo =
-                &extIe->extensionValue.choice.X2TNLConfigurationInfo;
-
-            eNBX2TransportLayerAddresses =
-                &x2TNLConfigurationInfo->eNBX2TransportLayerAddresses;
-            transportLayerAddress =
-                core_calloc(1, sizeof(S1AP_TransportLayerAddress_t));
-            d_assert(transportLayerAddress, return CORE_ERROR,);
-            ASN_SEQUENCE_ADD(
-                    &eNBX2TransportLayerAddresses->list, transportLayerAddress);
-
-            rv = s1ap_ip_to_BIT_STRING(
-                    &target_enb->x2_ip, transportLayerAddress);
-            d_assert(rv == CORE_OK, return CORE_ERROR,);
-
-            iE_Extensions = (S1AP_ProtocolExtensionContainer_6602P89_t *)
-                SONConfigurationTransfer->iE_Extensions;
-            d_assert(iE_Extensions, return CORE_ERROR,);
-
-            x2TNLConfigurationInfo->iE_Extensions = core_calloc(1,
-                    sizeof(S1AP_ProtocolExtensionContainer_6602P117_t));
-            iE_Extensions2 = 
-                (S1AP_ProtocolExtensionContainer_6602P117_t *)
-                x2TNLConfigurationInfo->iE_Extensions;
-            d_assert(iE_Extensions2, return CORE_ERROR,);
-
-            extIe2 = core_calloc(1,
-                    sizeof(S1AP_X2TNLConfigurationInfo_ExtIEs_t));
-            d_assert(extIe2, return CORE_ERROR,);
-            ASN_SEQUENCE_ADD(&iE_Extensions2->list, extIe2);
-
-            extIe2->id =
-                S1AP_ProtocolIE_ID_id_eNBX2ExtendedTransportLayerAddresses;
-            extIe2->criticality = S1AP_Criticality_ignore;
-            extIe2->extensionValue.present = S1AP_X2TNLConfigurationInfo_ExtIEs__extensionValue_PR_ENBX2ExtTLAs,
-
-            ENBX2ExtTLAs = &extIe2->extensionValue.choice.ENBX2ExtTLAs;
-
-            ENBX2ExtTLA = core_calloc(1, sizeof(S1AP_ENBX2ExtTLA_t));
-            d_assert(ENBX2ExtTLA, return CORE_ERROR,);
-            ASN_SEQUENCE_ADD(&ENBX2ExtTLAs->list, ENBX2ExtTLA);
-
-            ENBX2ExtTLA->gTPTLAa = core_calloc(1, sizeof(S1AP_ENBX2GTPTLAs_t));
-            gTPTLAa = ENBX2ExtTLA->gTPTLAa;
-            d_assert(gTPTLAa, return CORE_ERROR,);
-
-            transportLayerAddress =
-                core_calloc(1, sizeof(S1AP_TransportLayerAddress_t));
-            d_assert(transportLayerAddress, return CORE_ERROR,);
-            ASN_SEQUENCE_ADD(&gTPTLAa->list, transportLayerAddress);
-
-            rv = s1ap_ip_to_BIT_STRING(
-                    &target_enb->x2_gtp_ip, transportLayerAddress);
-            d_assert(rv == CORE_OK, return CORE_ERROR,);
-        }
-        else
-        {
-            /* SON Information Reply */
-            S1AP_SONInformationReply_t *sONInformationReply = NULL;
-            S1AP_X2TNLConfigurationInfo_t *x2TNLConfigurationInfo = NULL;
-            S1AP_ENBX2TLAs_t *eNBX2TransportLayerAddresses = NULL;
-            S1AP_TransportLayerAddress_t *transportLayerAddress = NULL;
-
-            d_trace(5, "    SON Information Reply\n");
-
-            sONInformation->present =
-                S1AP_SONInformation_PR_sONInformationReply;
-
-            sONInformation->choice.sONInformationReply = 
-                core_calloc(1, sizeof(S1AP_SONInformationReply_t));
-            sONInformationReply = sONInformation->choice.sONInformationReply;
-            d_assert(sONInformationReply, return CORE_ERROR,);
-
-            sONInformationReply->x2TNLConfigurationInfo = 
-                core_calloc(1, sizeof(S1AP_X2TNLConfigurationInfo_t));
-            x2TNLConfigurationInfo =
-                sONInformationReply->x2TNLConfigurationInfo;
-            d_assert(x2TNLConfigurationInfo, return CORE_ERROR,);
-
-            eNBX2TransportLayerAddresses =
-                &x2TNLConfigurationInfo->eNBX2TransportLayerAddresses;
-            transportLayerAddress =
-                core_calloc(1, sizeof(S1AP_TransportLayerAddress_t));
-            d_assert(transportLayerAddress, return CORE_ERROR,);
-            ASN_SEQUENCE_ADD(
-                    &eNBX2TransportLayerAddresses->list, transportLayerAddress);
-
-            rv = s1ap_ip_to_BIT_STRING(
-                    &target_enb->x2_ip, transportLayerAddress);
-            d_assert(rv == CORE_OK, return CORE_ERROR,);
-        }
+        sONInformation->present = S1AP_SONInformation_PR_sONInformationRequest;
+        d_trace(5, "    SONInformationRequest\n");
     }
 
     rv = s1ap_encode_pdu(s1apbuf, &pdu);

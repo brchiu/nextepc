@@ -283,8 +283,11 @@ status_t s1ap_send_mme_configuration_transfer(
     d_assert(target_enb, return CORE_ERROR,);
     d_assert(SONConfigurationTransfer, return CORE_ERROR,);
 
+#if 0
     if (target_enb->x2_ip.ipv4 || target_enb->x2_ip.ipv6)
     {
+        /* Target X2 Configuration Avaiable */
+        d_trace(5, "Target X2 Configuration Available\n");
         rv = s1ap_build_mme_configuration_transfer(&s1apbuf, target_enb,
             (S1AP_SourceeNB_ID_t *)&SONConfigurationTransfer->targeteNB_ID,
             (S1AP_TargeteNB_ID_t *)&SONConfigurationTransfer->sourceeNB_ID);
@@ -296,7 +299,8 @@ status_t s1ap_send_mme_configuration_transfer(
     }
     else
     {
-        rv = s1ap_build_mme_configuration_transfer(&s1apbuf, NULL,
+        d_trace(5, "NO Target X2 Configuration\n");
+        rv = s1ap_build_mme_configuration_transfer(&s1apbuf, source_enb,
             (S1AP_SourceeNB_ID_t *)&SONConfigurationTransfer->sourceeNB_ID,
             (S1AP_TargeteNB_ID_t *)&SONConfigurationTransfer->targeteNB_ID);
         d_assert(rv == CORE_OK && s1apbuf,
@@ -305,6 +309,16 @@ status_t s1ap_send_mme_configuration_transfer(
         rv = s1ap_send_to_enb(target_enb, s1apbuf);
         d_assert(rv == CORE_OK,, "s1ap send error");
     }
+#else
+    rv = s1ap_build_mme_configuration_transfer(&s1apbuf, source_enb,
+        (S1AP_SourceeNB_ID_t *)&SONConfigurationTransfer->sourceeNB_ID,
+        (S1AP_TargeteNB_ID_t *)&SONConfigurationTransfer->targeteNB_ID);
+    d_assert(rv == CORE_OK && s1apbuf,
+            return CORE_ERROR, "s1ap build error");
+
+    rv = s1ap_send_to_enb(target_enb, s1apbuf);
+    d_assert(rv == CORE_OK,, "s1ap send error");
+#endif
 
     return rv;
 }

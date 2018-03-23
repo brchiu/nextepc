@@ -26,7 +26,7 @@ CORE_DECLARE(status_t) s1ap_build_ue_context_release_command(
 CORE_DECLARE(status_t) s1ap_build_paging(pkbuf_t **s1apbuf, mme_ue_t *mme_ue);
 
 CORE_DECLARE(status_t) s1ap_build_mme_configuration_transfer(
-        pkbuf_t **s1apbuf, mme_enb_t *target_enb,
+        pkbuf_t **s1apbuf, mme_enb_t *enb,
         S1AP_SourceeNB_ID_t *sourceenb_id, S1AP_TargeteNB_ID_t *targetenb_id);
 
 CORE_DECLARE(status_t) s1ap_build_path_switch_ack(
