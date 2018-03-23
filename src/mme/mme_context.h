@@ -151,6 +151,9 @@ typedef struct _mme_enb_t {
     c_uint8_t       num_of_supported_ta_list;
     tai_t           supported_ta_list[MAX_NUM_OF_TAI * MAX_NUM_OF_BPLMN];
 
+    ip_t            x2_ip;
+    ip_t            x2_gtp_ip;
+
     list_t          enb_ue_list;
 
 } mme_enb_t;

@@ -1312,49 +1312,190 @@ void s1ap_handle_enb_configuration_transfer(
 
     if (SONConfigurationTransfer)
     {
-        S1AP_SONConfigurationTransfer_t *transfer = SONConfigurationTransfer;
+        S1AP_SONInformation_t *sONInformation =
+            &SONConfigurationTransfer->sONInformation;
+        S1AP_ProtocolExtensionContainer_6602P89_t *iE_Extensions = 
+            (S1AP_ProtocolExtensionContainer_6602P89_t *)
+            SONConfigurationTransfer->iE_Extensions;
+
         mme_enb_t *target_enb = NULL;
+        c_uint32_t target_enb_id;
+#if 0
         c_uint32_t source_enb_id, target_enb_id;
         c_uint16_t source_tac, target_tac;
-
-        d_assert(transfer, return,);
+        long present;
+#endif
 
         s1ap_ENB_ID_to_uint32(
-                &transfer->sourceeNB_ID.global_ENB_ID.eNB_ID,
-                &source_enb_id);
-        s1ap_ENB_ID_to_uint32(
-                &transfer->targeteNB_ID.global_ENB_ID.eNB_ID,
+                &SONConfigurationTransfer->targeteNB_ID.global_ENB_ID.eNB_ID,
                 &target_enb_id);
-
-        memcpy(&source_tac, transfer->sourceeNB_ID.selected_TAI.tAC.buf,
-                sizeof(source_tac));
-        source_tac = ntohs(source_tac);
-        memcpy(&target_tac, transfer->targeteNB_ID.selected_TAI.tAC.buf,
-                sizeof(target_tac));
-        target_tac = ntohs(target_tac);
-
-        d_trace(5, "    Source : ENB_ID[%s:%d], TAC[%d]\n",
-                transfer->sourceeNB_ID.global_ENB_ID.eNB_ID.present == 
-                    S1AP_ENB_ID_PR_homeENB_ID ? "Home" : 
-                transfer->sourceeNB_ID.global_ENB_ID.eNB_ID.present == 
-                    S1AP_ENB_ID_PR_macroENB_ID ? "Macro" : "Others",
-                source_enb_id, source_tac);
-        d_trace(5, "    Target : ENB_ID[%s:%d], TAC[%d]\n",
-                transfer->targeteNB_ID.global_ENB_ID.eNB_ID.present == 
-                    S1AP_ENB_ID_PR_homeENB_ID ? "Home" : 
-                transfer->targeteNB_ID.global_ENB_ID.eNB_ID.present == 
-                    S1AP_ENB_ID_PR_macroENB_ID ? "Macro" : "Others",
-                target_enb_id, target_tac);
-
         target_enb = mme_enb_find_by_enb_id(target_enb_id);
         if (target_enb == NULL)
         {
-            d_error("Cannot find target eNB-id[%d] "
+            d_warn("Cannot find target eNB-id[%d] "
                     "in eNB-Configuration-Transfer", target_enb_id);
             return;
         }
 
-        rv = s1ap_send_mme_configuration_transfer(target_enb, pkbuf);
+        if (sONInformation &&
+            sONInformation->present ==
+                S1AP_SONInformation_PR_sONInformationReply)
+        {
+            S1AP_SONInformationReply_t *sONInformationReply = NULL;
+            S1AP_X2TNLConfigurationInfo_t *x2TNLConfigurationInfo = NULL;
+            S1AP_ENBX2TLAs_t *eNBX2TransportLayerAddresses = NULL;
+            S1AP_TransportLayerAddress_t *transportLayerAddress = NULL;
+
+            sONInformationReply = sONInformation->choice.sONInformationReply;
+            d_assert(sONInformationReply, return,);
+            x2TNLConfigurationInfo =
+                sONInformationReply->x2TNLConfigurationInfo;
+            d_assert(x2TNLConfigurationInfo, return,);
+
+            eNBX2TransportLayerAddresses =
+                &x2TNLConfigurationInfo->eNBX2TransportLayerAddresses;
+            d_assert(eNBX2TransportLayerAddresses, return,);
+            d_assert(eNBX2TransportLayerAddresses->list.count, return,);
+            transportLayerAddress = (S1AP_TransportLayerAddress_t *)
+                    eNBX2TransportLayerAddresses->list.array[0];
+            d_assert(transportLayerAddress, return,);
+            rv = s1ap_BIT_STRING_to_ip(
+                    transportLayerAddress, &enb->x2_ip);
+            d_assert(rv == CORE_OK, return,);
+        }
+
+        if (iE_Extensions)
+        {
+            S1AP_SONConfigurationTransfer_ExtIEs_t *extIe = NULL;
+
+            d_assert(iE_Extensions->list.count, return,);
+            extIe = (S1AP_SONConfigurationTransfer_ExtIEs_t *)
+                    iE_Extensions->list.array[0];
+            d_assert(extIe, return,);
+
+            switch(extIe->id)
+            {
+                case S1AP_ProtocolIE_ID_id_x2TNLConfigurationInfo:
+                {
+                    S1AP_X2TNLConfigurationInfo_t *X2TNLConfigurationInfo =
+                        NULL;
+                    S1AP_ENBX2TLAs_t *eNBX2TransportLayerAddresses = NULL;
+                    S1AP_ProtocolExtensionContainer_6602P117_t *iE_Extensions = 
+                        NULL;
+                    S1AP_TransportLayerAddress_t *transportLayerAddress = NULL;
+
+                    X2TNLConfigurationInfo =
+                        &extIe->extensionValue.choice.X2TNLConfigurationInfo;
+                    d_assert(X2TNLConfigurationInfo, return,);
+                    eNBX2TransportLayerAddresses =
+                        &X2TNLConfigurationInfo->eNBX2TransportLayerAddresses;
+                    d_assert(eNBX2TransportLayerAddresses, return,);
+                    d_assert(eNBX2TransportLayerAddresses->list.count, return,);
+                    transportLayerAddress = (S1AP_TransportLayerAddress_t *)
+                            eNBX2TransportLayerAddresses->list.array[0];
+                    d_assert(transportLayerAddress, return,);
+                    rv = s1ap_BIT_STRING_to_ip(
+                            transportLayerAddress, &enb->x2_ip);
+                    d_assert(rv == CORE_OK, return,);
+
+                    iE_Extensions = 
+                        (S1AP_ProtocolExtensionContainer_6602P117_t *)
+                        X2TNLConfigurationInfo->iE_Extensions;
+
+                    if (iE_Extensions)
+                    {
+                        S1AP_X2TNLConfigurationInfo_ExtIEs_t *extIe = NULL;
+
+                        d_assert(iE_Extensions->list.count, return,);
+                        extIe = (S1AP_X2TNLConfigurationInfo_ExtIEs_t *)
+                                iE_Extensions->list.array[0];
+                        d_assert(extIe, return,);
+
+                        switch(extIe->id)
+                        {
+                            case S1AP_ProtocolIE_ID_id_eNBX2ExtendedTransportLayerAddresses:
+                            {
+                                S1AP_ENBX2ExtTLAs_t *ENBX2ExtTLAs = NULL;
+                                S1AP_ENBX2ExtTLA_t *ENBX2ExtTLA = NULL;
+                                S1AP_ENBX2GTPTLAs_t *gTPTLAa = NULL;
+                                S1AP_TransportLayerAddress_t *
+                                    transportLayerAddress = NULL;
+
+                                ENBX2ExtTLAs =
+                                    &extIe->extensionValue.choice.ENBX2ExtTLAs;
+                                d_assert(ENBX2ExtTLAs, return,);
+                                d_assert(ENBX2ExtTLAs->list.count, return,);
+
+                                ENBX2ExtTLA = (S1AP_ENBX2ExtTLA_t *)
+                                        ENBX2ExtTLAs->list.array[0];
+                                d_assert(ENBX2ExtTLA, return,);
+                                gTPTLAa = ENBX2ExtTLA->gTPTLAa;
+                                d_assert(gTPTLAa, return,);
+                                d_assert(gTPTLAa->list.count, return,);
+
+                                transportLayerAddress =
+                                    (S1AP_TransportLayerAddress_t *)
+                                        gTPTLAa->list.array[0];
+                                d_assert(transportLayerAddress, return,);
+
+                                rv = s1ap_BIT_STRING_to_ip(
+                                        transportLayerAddress, &enb->x2_gtp_ip);
+                                d_assert(rv == CORE_OK, return,);
+                                break;
+                            }
+                            default:
+                            {
+                                d_warn("Invalid ProtocolExtensionID[%d]",
+                                        extIe->id);
+                                break;
+                            }
+                        }
+                    }
+
+                    break;
+                }
+                default:
+                {
+                    d_warn("Invalid ProtocolExtensionID[%d]", extIe->id);
+                    break;
+                }
+
+            }
+        }
+
+#if 0
+        s1ap_ENB_ID_to_uint32(
+                &SONConfigurationTransfer->sourceeNB_ID.global_ENB_ID.eNB_ID,
+                &source_enb_id);
+        s1ap_ENB_ID_to_uint32(
+                &SONConfigurationTransfer->targeteNB_ID.global_ENB_ID.eNB_ID,
+                &target_enb_id);
+
+        memcpy(&source_tac,
+                SONConfigurationTransfer->sourceeNB_ID.selected_TAI.tAC.buf,
+                sizeof(source_tac));
+        source_tac = ntohs(source_tac);
+        memcpy(&target_tac,
+                SONConfigurationTransfer->targeteNB_ID.selected_TAI.tAC.buf,
+                sizeof(target_tac));
+        target_tac = ntohs(target_tac);
+
+        present =
+            SONConfigurationTransfer->sourceeNB_ID.global_ENB_ID.eNB_ID.present;
+        d_trace(5, "    Source : ENB_ID[%s:%d], TAC[%d]\n",
+                present == S1AP_ENB_ID_PR_homeENB_ID ? "Home" : 
+                present == S1AP_ENB_ID_PR_macroENB_ID ? "Macro" : "Others",
+                source_enb_id, source_tac);
+        present =
+            SONConfigurationTransfer->targeteNB_ID.global_ENB_ID.eNB_ID.present;
+        d_trace(5, "    Target : ENB_ID[%s:%d], TAC[%d]\n",
+                present == S1AP_ENB_ID_PR_homeENB_ID ? "Home" : 
+                present == S1AP_ENB_ID_PR_macroENB_ID ? "Macro" : "Others",
+                target_enb_id, target_tac);
+#endif
+
+        rv = s1ap_send_mme_configuration_transfer(
+                enb, target_enb, SONConfigurationTransfer);
         d_assert(rv == CORE_OK,,);
     }
 }
@@ -1444,7 +1585,7 @@ void s1ap_handle_handover_required(mme_enb_t *enb, s1ap_message_t *message)
     target_enb = mme_enb_find_by_enb_id(target_enb_id);
     if (target_enb == NULL)
     {
-        d_error("Cannot find target eNB-id[%d] in Handover-Required",
+        d_warn("Cannot find target eNB-id[%d] in Handover-Required",
                 target_enb_id);
         return;
     }

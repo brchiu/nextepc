@@ -1166,6 +1166,103 @@ status_t s1ap_build_paging(pkbuf_t **s1apbuf, mme_ue_t *mme_ue)
     return CORE_OK;
 }
 
+status_t s1ap_build_mme_configuration_transfer(
+        pkbuf_t **s1apbuf, mme_enb_t *target_enb,
+        S1AP_SourceeNB_ID_t *sourceenb_id, S1AP_TargeteNB_ID_t *targetenb_id)
+{
+//    status_t rv;
+
+    S1AP_S1AP_PDU_t pdu;
+    S1AP_InitiatingMessage_t *initiatingMessage = NULL;
+    S1AP_MMEConfigurationTransfer_t *MMEConfigurationTransfer = NULL;
+
+    S1AP_MMEConfigurationTransferIEs_t *ie = NULL;
+    S1AP_SONConfigurationTransfer_t *SONConfigurationTransfer = NULL;
+    S1AP_TargeteNB_ID_t *targeteNB_ID = NULL;
+    S1AP_SourceeNB_ID_t *sourceeNB_ID = NULL;
+    S1AP_SONInformation_t *sONInformation = NULL;
+
+    c_uint32_t source_enb_id, target_enb_id;
+    c_uint16_t source_tac, target_tac;
+    long present;
+
+    d_assert(target_enb, return CORE_ERROR,);
+    d_assert(sourceenb_id, return CORE_ERROR,);
+    d_assert(targetenb_id, return CORE_ERROR,);
+
+    memset(&pdu, 0, sizeof (S1AP_S1AP_PDU_t));
+    pdu.present = S1AP_S1AP_PDU_PR_initiatingMessage;
+    pdu.choice.initiatingMessage = 
+        core_calloc(1, sizeof(S1AP_InitiatingMessage_t));
+
+    initiatingMessage = pdu.choice.initiatingMessage;
+    initiatingMessage->procedureCode =
+        S1AP_ProcedureCode_id_MMEConfigurationTransfer;
+    initiatingMessage->criticality = S1AP_Criticality_ignore;
+    initiatingMessage->value.present =
+        S1AP_InitiatingMessage__value_PR_MMEConfigurationTransfer;
+
+    MMEConfigurationTransfer =
+        &initiatingMessage->value.choice.MMEConfigurationTransfer;
+
+    ie = core_calloc(1, sizeof(S1AP_MMEConfigurationTransferIEs_t));
+    ASN_SEQUENCE_ADD(&MMEConfigurationTransfer->protocolIEs, ie);
+
+    ie->id = S1AP_ProtocolIE_ID_id_SONConfigurationTransferMCT;
+    ie->criticality = S1AP_Criticality_ignore;
+    ie->value.present =
+        S1AP_MMEConfigurationTransferIEs__value_PR_SONConfigurationTransfer;
+
+    SONConfigurationTransfer = &ie->value.choice.SONConfigurationTransfer;
+
+    targeteNB_ID = &SONConfigurationTransfer->targeteNB_ID;
+    sourceeNB_ID = &SONConfigurationTransfer->sourceeNB_ID;
+    sONInformation = &SONConfigurationTransfer->sONInformation;
+    d_assert(targeteNB_ID, return CORE_ERROR,);
+    d_assert(sourceeNB_ID, return CORE_ERROR,);
+    d_assert(sONInformation, return CORE_ERROR,);
+
+    present = sourceenb_id->global_ENB_ID.eNB_ID.present;
+    s1ap_ENB_ID_to_uint32(&sourceenb_id->global_ENB_ID.eNB_ID, &source_enb_id);
+    memcpy(&source_tac, &sourceenb_id->selected_TAI.tAC.buf,
+            sizeof(source_tac));
+    source_tac = ntohs(source_tac);
+
+    d_trace(5, "    Source : ENB_ID[%s:%d], TAC[%d]\n",
+            present == S1AP_ENB_ID_PR_homeENB_ID ? "Home" : 
+            present == S1AP_ENB_ID_PR_macroENB_ID ? "Macro" : "Others",
+            source_enb_id, source_tac);
+
+    sourceeNB_ID->global_ENB_ID.eNB_ID.present = present;
+    s1ap_uint32_to_ENB_ID(present,
+            source_enb_id, &sourceeNB_ID->global_ENB_ID.eNB_ID);
+
+#if 0
+    s1ap_ENB_ID_to_uint32(
+            &targetenb_id->global_ENB_ID.eNB_ID, &target_enb_id);
+    memcpy(&target_tac,
+            &targetenb_id->selected_TAI.tAC.buf, sizeof(target_tac));
+    target_tac = ntohs(target_tac);
+
+    present = targetenb_id->global_ENB_ID.eNB_ID.present;
+    d_trace(5, "    Target : ENB_ID[%s:%d], TAC[%d]\n",
+            present == S1AP_ENB_ID_PR_homeENB_ID ? "Home" : 
+            present == S1AP_ENB_ID_PR_macroENB_ID ? "Macro" : "Others",
+            target_enb_id, target_tac);
+
+    rv = s1ap_encode_pdu(s1apbuf, &pdu);
+    s1ap_free_pdu(&pdu);
+
+    if (rv != CORE_OK)
+    {
+        d_error("s1ap_encode_pdu() failed");
+        return CORE_ERROR;
+    }
+#endif
+
+    return CORE_OK;
+}
+
 status_t s1ap_build_path_switch_ack(pkbuf_t **s1apbuf, mme_ue_t *mme_ue)
 {
     status_t rv;

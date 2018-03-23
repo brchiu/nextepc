@@ -2276,7 +2276,9 @@ status_t tests1ap_build_enb_configuration_transfer(
         "0028"
         "403c000001008140 354000f110000004 3000f1105ba00000 f11040830bb87000"
         "f1105ba000000000 98401341f0c0a864 6800000099400702 00f8c0a86468",
-        "",
+        "0028"
+        "002a000001008140 230000f190400000 0ec000f190008400 00f1904000000e20"
+        "00f190007a500f80 0a6600e2",
         "",
 
         "",
@@ -2290,7 +2292,7 @@ status_t tests1ap_build_enb_configuration_transfer(
     };
     c_uint16_t len[TESTS1AP_MAX_MESSAGE] = {
         64,
-        0,
+        46,
         0,
 
         0,

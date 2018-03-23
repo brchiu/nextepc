@@ -14,8 +14,8 @@ extern "C" {
 #define SCTP_S1AP_PPID              18
 #define SCTP_X2AP_PPID              27
 
-#define MAX_NUM_OF_ENB              128
-#define MAX_NUM_OF_UE               128
+#define MAX_NUM_OF_ENB              64
+#define MAX_NUM_OF_UE               64
 #define MAX_NUM_OF_SESS             4
 #define MAX_NUM_OF_BEARER           4
 #define MAX_NUM_OF_TUNNEL           3   /* Num of Tunnel per Bearer */
